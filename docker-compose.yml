@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # ZERO TRACE Application (Frontend + API)
+  # ==========================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zero_trace_app
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=postgres://zerotrace_user:${DB_PASSWORD:-zerotrace_secure_pass_2026}@postgres:5432/zerotrace_db
+      - STORAGE_DIR=/app/storage
+      - SERVER_HMAC_SECRET=${SERVER_HMAC_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      - MAX_FILE_SIZE_BYTES=209715200 # 200 MB
+      - RATE_LIMIT_MAX_REQUESTS=150
+      - RATE_LIMIT_WINDOW_MS=60000
+    volumes:
+      - storage_data:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - zerotrace_net
+
+  # ==========================================
+  # PostgreSQL Metadata Store
+  # ==========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: zero_trace_db
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - POSTGRES_USER=zerotrace_user
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-zerotrace_secure_pass_2026}
+      - POSTGRES_DB=zerotrace_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./server/src/db/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zerotrace_user -d zerotrace_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zerotrace_net
+
+  # ==========================================
+  # Optional: Tor Hidden Service (.onion gateway)
+  # ==========================================
+  tor:
+    image: goldy/tor-hidden-service:latest
+    container_name: zero_trace_tor
+    restart: unless-stopped
+    links:
+      - app
+    environment:
+      - APP_TOR_SERVICE_HOSTS=80:app:3001
+      - APP_TOR_SERVICE_VERSION=3
+    volumes:
+      - tor_keys:/var/lib/tor/hidden_service/
+    depends_on:
+      - app
+    networks:
+      - zerotrace_net
+
+volumes:
+  storage_data:
+    driver: local
+  postgres_data:
+    driver: local
+  tor_keys:
+    driver: local
+
+networks:
+  zerotrace_net:
+    driver: bridge

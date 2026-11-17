@@ -1,0 +1,21 @@
+{
+  "name": "zero-trace",
+  "version": "1.0.0",
+  "description": "Anonymous, End-to-End Encrypted Sharing Platform",
+  "author": "Antigravity Security Engineering",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build:server": "cd server && npm run build",
+    "build:client": "cd client && npm run build",
+    "build:all": "npm run build:client && npm run build:server",
+    "start": "cd server && npm run start",
+    "test:crypto": "cd server && npx tsx --test ../tests/crypto.test.ts",
+    "test:api": "cd server && NODE_ENV=test npx tsx --test ../tests/api.test.ts",
+    "test:security": "cd server && NODE_ENV=test npx tsx --test ../tests/security.test.ts",
+    "test:e2e": "cd server && NODE_ENV=test npx tsx --test ../tests/e2e_simulation.ts",
+    "test:all": "npm run test:crypto && npm run test:api && npm run test:security && npm run test:e2e"
+  }
+}
