@@ -96,8 +96,8 @@ export async function startServer(): Promise<{ server: any; close: () => Promise
     }
   }, config.CLEANUP_INTERVAL_MS);
 
-  const server = app.listen(config.PORT, () => {
-    console.log(`[ZERO TRACE] Server active on port ${config.PORT} [${config.NODE_ENV}]`);
+  const server = app.listen(config.PORT, '0.0.0.0', () => {
+    console.log(`[ZERO TRACE] Server active on port ${config.PORT} [${config.NODE_ENV}] (0.0.0.0)`);
     console.log(`[ZERO TRACE] Storage: ${config.STORAGE_DIR} | DB: ${config.DB_TYPE}`);
   });
 
