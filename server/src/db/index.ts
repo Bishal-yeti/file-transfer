@@ -1,6 +1,6 @@
 import { config } from '../config/index.js';
 import { IDatabase } from './types.js';
-import { SqliteDatabase } from './sqlite.js';
+import { AtomicFileDatabase } from './atomic.js';
 import { PostgresDatabase } from './postgres.js';
 
 let dbInstance: IDatabase | null = null;
@@ -11,7 +11,8 @@ export async function getDatabase(): Promise<IDatabase> {
   if (config.DB_TYPE === 'postgres' && config.DATABASE_URL) {
     dbInstance = new PostgresDatabase(config.DATABASE_URL);
   } else {
-    dbInstance = new SqliteDatabase(config.STORAGE_DIR);
+    // Pure TypeScript zero-dependency atomic database (immune to C++ native ABI mismatches)
+    dbInstance = new AtomicFileDatabase(config.STORAGE_DIR);
   }
 
   await dbInstance.init();
