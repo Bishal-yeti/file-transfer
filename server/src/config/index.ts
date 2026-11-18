@@ -28,8 +28,8 @@ export const config: AppConfig = {
   STORAGE_DIR: process.env.STORAGE_DIR ? path.resolve(process.env.STORAGE_DIR) : defaultStorageDir,
   DB_TYPE: process.env.DATABASE_URL?.startsWith('postgres') ? 'postgres' : 'sqlite',
   DATABASE_URL: process.env.DATABASE_URL,
-  MAX_FILE_SIZE_BYTES: Number.parseInt(process.env.MAX_FILE_SIZE_BYTES || `${200 * 1024 * 1024}`, 10), // 200 MB default ceiling
-  MAX_SHARE_CHUNKS: 200, // up to 400MB total per share
+  MAX_FILE_SIZE_BYTES: Number.parseInt(process.env.MAX_FILE_SIZE_BYTES || `${1024 * 1024 * 1024}`, 10), // 1 GB (1,073,741,824 bytes)
+  MAX_SHARE_CHUNKS: 1000, // up to 2GB total per share (500 chunks for 1GB at 2MB/chunk)
   CHUNK_SIZE_BYTES: 2 * 1024 * 1024, // 2MB chunk standard
   RATE_LIMIT_MAX_REQUESTS: Number.parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '150', 10),
   RATE_LIMIT_WINDOW_MS: 60 * 1000, // 1 minute

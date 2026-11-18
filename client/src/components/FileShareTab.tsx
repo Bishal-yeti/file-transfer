@@ -134,7 +134,7 @@ export const FileShareTab: React.FC<FileShareTabProps> = ({ shareManager, onShar
         <UploadCloud className="dropzone-icon" />
         <h3 className="dropzone-title">Select Files or Drag & Drop</h3>
         <p className="dropzone-desc">
-          Documents, archives, code, PDFs, datasets up to 200MB. Encrypted locally with AES-256-GCM.
+          Documents, archives, code, PDFs, datasets up to 1GB. Encrypted locally with AES-256-GCM.
         </p>
       </div>
 

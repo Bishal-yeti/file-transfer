@@ -82,8 +82,8 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
 
-    # Maximum payload upload limit (matching application config)
-    client_max_body_size 250M;
+    # Maximum payload upload limit (matching application 1GB config)
+    client_max_body_size 1200M;
 
     # Security Headers
     add_header X-Content-Type-Options nosniff always;
