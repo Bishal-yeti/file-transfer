@@ -8,7 +8,8 @@ build/
 *.tsbuildinfo
 
 # Storage & Runtime Data
-storage/
+/storage/
+server/storage/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
