@@ -61,6 +61,76 @@ export interface DecryptedShareResult {
 const CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB
 
 export class ShareManager {
+  private async uploadChunkWithRetry(
+    shareId: string,
+    chunkIndex: number,
+    data: Uint8Array,
+    maxRetries = 5
+  ): Promise<void> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const uploadRes = await fetch(`/api/shares/${shareId}/chunks/${chunkIndex}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/octet-stream' },
+          body: data as any,
+        });
+
+        if (uploadRes.ok) return;
+
+        if (uploadRes.status === 429 && attempt < maxRetries) {
+          const retryAfter = Number.parseInt(uploadRes.headers.get('Retry-After') || '2', 10);
+          await new Promise((r) => setTimeout(r, Math.max(1000, retryAfter * 1000)));
+          continue;
+        }
+
+        if (attempt < maxRetries) {
+          await new Promise((r) => setTimeout(r, attempt * 800));
+          continue;
+        }
+
+        const errText = await uploadRes.text().catch(() => '');
+        throw new Error(`Failed to upload chunk ${chunkIndex} (HTTP ${uploadRes.status}): ${errText}`);
+      } catch (err: any) {
+        if (attempt >= maxRetries) throw err;
+        await new Promise((r) => setTimeout(r, attempt * 800));
+      }
+    }
+  }
+
+  private async downloadChunkWithRetry(
+    shareId: string,
+    chunkIndex: number,
+    maxRetries = 5
+  ): Promise<{ data: Uint8Array; burned: boolean }> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const chunkRes = await fetch(`/api/shares/${shareId}/chunks/${chunkIndex}`);
+        if (chunkRes.ok) {
+          const burned = chunkRes.headers.get('x-share-burned') === 'true';
+          const buffer = new Uint8Array(await chunkRes.arrayBuffer());
+          return { data: buffer, burned };
+        }
+
+        if (chunkRes.status === 429 && attempt < maxRetries) {
+          const retryAfter = Number.parseInt(chunkRes.headers.get('Retry-After') || '2', 10);
+          await new Promise((r) => setTimeout(r, Math.max(1000, retryAfter * 1000)));
+          continue;
+        }
+
+        if (attempt < maxRetries) {
+          await new Promise((r) => setTimeout(r, attempt * 800));
+          continue;
+        }
+
+        throw new Error(`Failed to download chunk ${chunkIndex} (HTTP ${chunkRes.status})`);
+      } catch (err: any) {
+        if (attempt >= maxRetries) throw err;
+        await new Promise((r) => setTimeout(r, attempt * 800));
+      }
+    }
+    throw new Error(`Failed to download chunk ${chunkIndex}`);
+  }
+
   /**
    * Encrypts and uploads files or messages client-side before sending to server
    */
@@ -209,16 +279,7 @@ export class ShareManager {
           message: `Uploading encrypted chunk ${globalChunkIdx + 1}/${totalChunks}...`,
         });
 
-        const uploadRes = await fetch(`/api/shares/${shareId}/chunks/${globalChunkIdx}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/octet-stream' },
-          body: encryptedChunk as any,
-        });
-
-        if (!uploadRes.ok) {
-          throw new Error(`Failed to upload chunk ${globalChunkIdx}`);
-        }
-
+        await this.uploadChunkWithRetry(shareId, globalChunkIdx, encryptedChunk);
         globalChunkIdx++;
       }
     }
@@ -227,12 +288,7 @@ export class ShareManager {
     if (files.length === 0 && textContent) {
       const textBytes = new TextEncoder().encode(textContent);
       const encryptedChunk = await encryptChunk(textBytes, masterKey, shareId, 0);
-
-      await fetch(`/api/shares/${shareId}/chunks/0`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/octet-stream' },
-        body: encryptedChunk as any,
-      });
+      await this.uploadChunkWithRetry(shareId, 0, encryptedChunk);
     }
 
     onProgress?.({
@@ -379,16 +435,10 @@ export class ShareManager {
           message: `Downloading encrypted chunk ${currentGlobalChunk + 1}/${totalChunks}...`,
         });
 
-        const chunkRes = await fetch(`/api/shares/${shareId}/chunks/${currentGlobalChunk}`);
-        if (!chunkRes.ok) {
-          throw new Error(`Failed to download chunk ${currentGlobalChunk}`);
-        }
-
-        if (chunkRes.headers.get('x-share-burned') === 'true') {
+        const { data: rawEncrypted, burned } = await this.downloadChunkWithRetry(shareId, currentGlobalChunk);
+        if (burned) {
           isBurned = true;
         }
-
-        const rawEncrypted = new Uint8Array(await chunkRes.arrayBuffer());
 
         onProgress?.({
           percent: 35 + Math.round((currentGlobalChunk / totalChunks) * 60),

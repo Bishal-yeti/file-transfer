@@ -51,22 +51,27 @@ class PrivacyRateLimiter {
     const clientToken = this.getAnonymizedClientToken(req);
     const now = Date.now();
 
-    let entry = this.cache.get(clientToken);
+    // Chunk transfers for large files (1GB = 500+ chunks) use a high-capacity chunk bucket
+    const isChunkStream = req.originalUrl?.includes('/chunks/') || req.path?.includes('/chunks/');
+    const bucketLimit = isChunkStream ? 20000 : this.maxRequests;
+    const cacheKey = isChunkStream ? `${clientToken}:chunks` : clientToken;
+
+    let entry = this.cache.get(cacheKey);
     if (!entry || now > entry.resetAt) {
       entry = { count: 1, resetAt: now + this.windowMs };
-      this.cache.set(clientToken, entry);
+      this.cache.set(cacheKey, entry);
     } else {
       entry.count++;
     }
 
-    const remaining = Math.max(0, this.maxRequests - entry.count);
+    const remaining = Math.max(0, bucketLimit - entry.count);
     const resetSeconds = Math.ceil((entry.resetAt - now) / 1000);
 
-    res.setHeader('RateLimit-Limit', this.maxRequests);
+    res.setHeader('RateLimit-Limit', bucketLimit);
     res.setHeader('RateLimit-Remaining', remaining);
     res.setHeader('RateLimit-Reset', resetSeconds);
 
-    if (entry.count > this.maxRequests) {
+    if (entry.count > bucketLimit) {
       res.setHeader('Retry-After', resetSeconds);
       res.status(429).json({
         error: 'Too Many Requests',
