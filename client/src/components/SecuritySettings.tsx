@@ -142,7 +142,7 @@ export const SecuritySettings: React.FC<SecuritySettingsProps> = ({ config, onCh
             </button>
           </div>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.4rem' }}>
-            Zero Trace never receives this password. If the recipient enters an incorrect password, AES-GCM tag verification will fail.
+            File Transfer never receives this password. If the recipient enters an incorrect password, AES-GCM tag verification will fail.
           </p>
         </div>
       )}

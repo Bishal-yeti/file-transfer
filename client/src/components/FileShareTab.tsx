@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, File, Trash2, Shield, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { UploadCloud, File, Trash2, Lock, ArrowRight, Loader2, Plus, FolderPlus } from 'lucide-react';
 import { SecuritySettings, SecurityConfig } from './SecuritySettings.js';
 import { SecurityIndicator } from './SecurityIndicator.js';
 import { ShareManager, CreateShareResult, UploadProgress } from '../services/shareManager.js';
@@ -37,12 +37,63 @@ export const FileShareTab: React.FC<FileShareTabProps> = ({ shareManager, onShar
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const scanEntry = async (entry: any): Promise<File[]> => {
+    if (entry.isFile) {
+      return new Promise((resolve) => {
+        entry.file(
+          (file: File) => resolve([file]),
+          () => resolve([])
+        );
+      });
+    } else if (entry.isDirectory) {
+      const dirReader = entry.createReader();
+      return new Promise((resolve) => {
+        dirReader.readEntries(
+          async (entries: any[]) => {
+            const subPromises = entries.map((sub) => scanEntry(sub));
+            const subFiles = await Promise.all(subPromises);
+            resolve(subFiles.flat());
+          },
+          () => resolve([])
+        );
+      });
+    }
+    return [];
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      addFiles(Array.from(e.dataTransfer.files));
+
+    try {
+      const items = e.dataTransfer.items;
+      if (items && items.length > 0) {
+        const foundFiles: File[] = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as any;
+          const entry = typeof item.webkitGetAsEntry === 'function' ? item.webkitGetAsEntry() : null;
+          if (entry) {
+            const entryFiles = await scanEntry(entry);
+            foundFiles.push(...entryFiles);
+          } else {
+            const f = items[i].getAsFile();
+            if (f) foundFiles.push(f);
+          }
+        }
+        if (foundFiles.length > 0) {
+          addFiles(foundFiles);
+          return;
+        }
+      }
+
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        addFiles(Array.from(e.dataTransfer.files));
+      }
+    } catch {
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        addFiles(Array.from(e.dataTransfer.files));
+      }
     }
   };
 
@@ -50,11 +101,18 @@ export const FileShareTab: React.FC<FileShareTabProps> = ({ shareManager, onShar
     if (e.target.files && e.target.files.length > 0) {
       addFiles(Array.from(e.target.files));
     }
+    // Reset file input so re-selecting same file fires onChange
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const addFiles = (newFiles: File[]) => {
     setErrorMsg(null);
-    setFiles((prev) => [...prev, ...newFiles]);
+    setFiles((prev) => {
+      // Prevent exact duplicates by name and size
+      const existingKeys = new Set(prev.map((f) => `${f.name}:${f.size}`));
+      const filtered = newFiles.filter((f) => !existingKeys.has(`${f.name}:${f.size}`));
+      return [...prev, ...filtered];
+    });
   };
 
   const removeFile = (index: number) => {
@@ -71,6 +129,11 @@ export const FileShareTab: React.FC<FileShareTabProps> = ({ shareManager, onShar
   const handleUpload = async () => {
     if (files.length === 0) {
       setErrorMsg('Please select at least one file to encrypt and share.');
+      return;
+    }
+
+    if (totalBytes > 1024 * 1024 * 1024) {
+      setErrorMsg('Total file size exceeds the 1 GB upload ceiling.');
       return;
     }
 
@@ -132,9 +195,9 @@ export const FileShareTab: React.FC<FileShareTabProps> = ({ shareManager, onShar
           onChange={handleFileChange}
         />
         <UploadCloud className="dropzone-icon" />
-        <h3 className="dropzone-title">Select Files or Drag & Drop</h3>
+        <h3 className="dropzone-title">Select Files, Folders or Drag & Drop</h3>
         <p className="dropzone-desc">
-          Documents, archives, code, PDFs, datasets up to 1GB. Encrypted locally with AES-256-GCM.
+          Multiple files, archives, code, documents up to 1GB. Encrypted locally with AES-256-GCM.
         </p>
       </div>
 
@@ -145,16 +208,27 @@ export const FileShareTab: React.FC<FileShareTabProps> = ({ shareManager, onShar
             <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted)' }}>
               Selected Files ({files.length}) — Total: {formatSize(totalBytes)}
             </h4>
-            <button
-              onClick={() => setFiles([])}
-              className="btn btn-secondary btn-sm"
-              style={{ fontSize: '0.75rem' }}
-            >
-              Clear All
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+              >
+                <Plus size={13} /> Add More
+              </button>
+              <button
+                type="button"
+                onClick={() => setFiles([])}
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: '0.75rem' }}
+              >
+                Clear All
+              </button>
+            </div>
           </div>
 
-          <div className="file-list">
+          <div className="file-list" style={{ maxHeight: '240px', overflowY: 'auto' }}>
             {files.map((file, idx) => (
               <div key={`${file.name}-${idx}`} className="file-row">
                 <div className="file-info">

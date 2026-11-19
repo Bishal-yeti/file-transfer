@@ -127,7 +127,7 @@ export const DecryptView: React.FC<DecryptViewProps> = ({
       const url = URL.createObjectURL(content);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `zero_trace_${shareId.slice(0, 8)}.zip`;
+      a.download = `file_transfer_${shareId.slice(0, 8)}.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
