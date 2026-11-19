@@ -86,12 +86,12 @@ export const App: React.FC = () => {
           </div>
           <div>
             <div className="logo-title">
-              ZERO TRACE
+              FILE TRANSFER
               <span style={{ fontSize: '0.65rem', background: 'rgba(56, 189, 248, 0.1)', color: 'var(--accent-cyan)', padding: '0.15rem 0.45rem', borderRadius: 4, border: '1px solid rgba(56, 189, 248, 0.2)' }}>
                 E2EE v1.0
               </span>
             </div>
-            <div className="logo-subtitle">Anonymous Zero-Knowledge Sharing</div>
+            <div className="logo-subtitle">Zero-Knowledge Encrypted Sharing</div>
           </div>
         </div>
 

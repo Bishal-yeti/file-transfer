@@ -1,8 +1,8 @@
 {
-  "name": "zero-trace",
+  "name": "file-transfer",
   "version": "1.0.0",
-  "description": "Anonymous, End-to-End Encrypted Sharing Platform",
-  "author": "Antigravity Security Engineering",
+  "description": "Anonymous, End-to-End Encrypted File Transfer Platform",
+  "author": "Bishal-yeti",
   "license": "MIT",
   "private": true,
   "workspaces": [
@@ -11,7 +11,6 @@
   ],
   "scripts": {
     "clean": "rm -rf node_modules server/node_modules client/node_modules server/dist client/dist",
-    "rebuild": "npm rebuild --prefix server",
     "setup": "npm run install:all && npm run build:all",
     "install:all": "npm install --prefix server && npm install --prefix client",
     "dev:server": "cd server && npm run dev",
@@ -20,6 +19,8 @@
     "build:client": "cd client && npm run build",
     "build:all": "npm run build:client && npm run build:server",
     "start": "cd server && npm run start",
+    "start:public": "./start-public.sh",
+    "tunnel": "cloudflared tunnel --protocol http2 --url http://localhost:3001",
     "test:crypto": "cd server && npx tsx --test ../tests/crypto.test.ts",
     "test:api": "cd server && NODE_ENV=test npx tsx --test ../tests/api.test.ts",
     "test:security": "cd server && NODE_ENV=test npx tsx --test ../tests/security.test.ts",
